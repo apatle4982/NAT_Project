@@ -1,0 +1,17 @@
+.htaccess
+config/app_local.php
+config/paths.php
+tmp/
+logs/
+webroot/files/
+webroot/temp/
+webroot/main/
+.idea/
+db_changes/
+vendor/
+webroot/files_qc_data_123.sql
+webroot/error_log
+*.sql
+error_log
+*.log
+.env
