@@ -1251,6 +1251,32 @@ class FilesExamReceiptController extends AppController
 				$open_judgments_attributes = json_decode($examReceiptFields->open_judgments_attributes, true);
 			}
 			//echo "<pre>";print_r($vesting_attributes);exit;
+
+			// Fetch DataTrace API log and build a field mapping for pre-population
+			$dtApiData = [];
+			$dtMapped  = [];
+			try {
+				$dtLogsTable = \Cake\ORM\TableRegistry::getTableLocator()->get('DatatraceApiLogs');
+				$dtLog = $dtLogsTable->find()
+					->where(['rec_id' => $fmd_id, 'status' => 'success'])
+					->orderDesc('created')
+					->first();
+				if ($dtLog && !empty($dtLog->response_payload)) {
+					$dtApiData = json_decode($dtLog->response_payload, true) ?? [];
+					$dtMapped  = $this->_mapDtToExamFields($dtApiData);
+				}
+			} catch (\Exception $e) {
+				\Cake\Log\Log::warning('ExamReceipt: DataTrace log fetch failed: ' . $e->getMessage(), ['scope' => 'datatrace']);
+			}
+
+			// Pre-fill attribute arrays from DataTrace only when no manual data exists yet
+			if (empty($vesting_attributes) && !empty($dtMapped['vesting_attributes'])) {
+				$vesting_attributes = $dtMapped['vesting_attributes'];
+			}
+			if (empty($open_mortgage_attributes) && !empty($dtMapped['open_mortgage_attributes'])) {
+				$open_mortgage_attributes = $dtMapped['open_mortgage_attributes'];
+			}
+
 	        if ($this->request->is(['post', 'put'])) {
 
 				$saveOpenBtn = $this->request->getData('saveOpenBtn');
@@ -1358,7 +1384,7 @@ class FilesExamReceiptController extends AppController
 		$this->set('partner_id', $companyId);
 		$this->set('nat_file_number', $nat_file_number);
 		
-        $this->set(compact('FilesExamReceipt','FilesMainData','examReceiptFields','open_mortgage_attributes','open_judgments_attributes','vesting_attributes','companyMsts','partnerMapFields','stateList','countyList', 'filesExamReceiptNew')); // 'documentList'
+        $this->set(compact('FilesExamReceipt','FilesMainData','examReceiptFields','open_mortgage_attributes','open_judgments_attributes','vesting_attributes','companyMsts','partnerMapFields','stateList','countyList', 'filesExamReceiptNew', 'dtApiData', 'dtMapped')); // 'documentList'
         $this->set('_serialize', ['FilesExamReceipt']);
 		
     }
@@ -2559,4 +2585,63 @@ class FilesExamReceiptController extends AppController
 
 		return $this->redirect(['action' => 'uploadSupportingDocument']);
 	}
+
+    /**
+     * Map a DataTrace API response_payload array to files_exam_receipt column names.
+     * Used by examReceipt() to pre-populate blank fields when a DataTrace log exists.
+     *
+     * @param array $dt  Decoded response_payload from datatrace_api_logs
+     * @return array     Flat + nested array keyed by exam-receipt field names
+     */
+    private function _mapDtToExamFields(array $dt): array
+    {
+        $prop = $dt['property']  ?? [];
+        $vest = $dt['vesting']   ?? [];
+        $mtgs = $dt['mortgages'] ?? [];
+        $tax  = $dt['taxes']     ?? [];
+        $mtg0 = $mtgs[0]         ?? [];
+
+        $mapped = [
+            'OfficialPropertyAddress' => trim(($prop['streetNumber'] ?? '') . ' ' . ($prop['streetName'] ?? '')),
+            'OfficialPropertyCity'    => $prop['city']  ?? '',
+            'OfficialPropertyState'   => $prop['state'] ?? '',
+            'OfficialPropertyCounty'  => rtrim($prop['county'] ?? '', ' County'),
+            'TaxStatus'               => $tax['status']       ?? '',
+            'TaxYear'                 => (string) ($tax['taxYear']    ?? ''),
+            'TaxAmount'               => $tax['annualAmount']  ?? '',
+            'TaxAPNAccount'           => $tax['parcelNumber']  ?? '',
+            'LegalDescription'        => $prop['legalDescription'] ?? '',
+        ];
+
+        if (!empty($vest)) {
+            $mapped['vesting_attributes'] = [[
+                'VestingDeedType'            => $vest['deedType']        ?? '',
+                'VestingConsiderationAmount' => $vest['consideration']   ?? '',
+                'VestedAsGrantee'            => $vest['grantedTo']       ?? '',
+                'VestingGrantor'             => $vest['currentOwner']    ?? '',
+                'VestingDated'               => $vest['acquisitionDate'] ?? '',
+                'VestingRecordedDate'        => $vest['recordedDate']    ?? '',
+                'VestingBookPage'            => trim(($vest['deedBook'] ?? '') . '/' . ($vest['deedPage'] ?? ''), '/'),
+                'VestingInstrument'          => $vest['instrumentNo']    ?? '',
+                'VestingComments'            => '',
+            ]];
+        }
+
+        if (!empty($mtg0)) {
+            $mapped['open_mortgage_attributes'] = [[
+                'OpenMortgageAmount'            => $mtg0['originalAmount']  ?? '',
+                'OpenMortgageDated'             => $mtg0['dateExecuted']    ?? '',
+                'OpenMortgageRecordedDate'      => $mtg0['dateRecorded']    ?? '',
+                'OpenMortgageBookPage'          => trim(($mtg0['book'] ?? '') . '/' . ($mtg0['page'] ?? ''), '/'),
+                'OpenMortgageInstrument'        => $mtg0['instrumentNo']    ?? '',
+                'OpenMortgageBorrowerMortgagor' => $mtg0['borrower']        ?? '',
+                'OpenMortgageLenderMortgagee'   => $mtg0['lenderName']      ?? '',
+                'OpenMortgageTrustee1'          => '',
+                'OpenMortgageTrustee2'          => '',
+                'OpenMortgageComments'          => '',
+            ]];
+        }
+
+        return $mapped;
+    }
 }

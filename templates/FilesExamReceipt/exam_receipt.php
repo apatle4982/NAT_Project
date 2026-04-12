@@ -5,6 +5,21 @@
 ?>
 
 <?= $this->Form->create($FilesExamReceipt, ['type' => 'file', 'horizontal' => true]) ?>
+
+<?php if (!empty($dtApiData)): ?>
+<div class="card mb-3" style="border-left:4px solid #1a3c6e;background:#f8f9ff;margin-top:10px;">
+    <div class="card-body py-2">
+        <h6 class="mb-2" style="color:#1a3c6e;"><strong>DataTrace API Receipt</strong></h6>
+        <div class="row">
+            <div class="col-md-3"><small class="text-muted">Receipt ID</small><br><strong><?= h($dtApiData['examReceiptId'] ?? '') ?></strong></div>
+            <div class="col-md-3"><small class="text-muted">Status</small><br><strong><?= h($dtApiData['status'] ?? '') ?></strong></div>
+            <div class="col-md-3"><small class="text-muted">Message</small><br><?= h($dtApiData['message'] ?? '') ?></div>
+            <div class="col-md-3"><small class="text-muted">ETA</small><br><?= h($dtApiData['eta'] ?? '') ?></div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="row">
 	<div class="col-lg-12 text-center btm-inline">
 		<div class="submit">
@@ -50,22 +65,22 @@
 									<div class="input-container-floating">	
 										<label class="form-label mb-0">Property Address</label>
 										<?php 	echo $this->Form->control('OfficialPropertyAddress', 
-											['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => $examReceiptFields['OfficialPropertyAddress'], 'title'=>'Only letters, numbers and special character are allowed (_@./)','style'=>'margin-bottom:6px !important;']); ?>
+											['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => (!empty($examReceiptFields['OfficialPropertyAddress']) ? $examReceiptFields['OfficialPropertyAddress'] : ($dtMapped['OfficialPropertyAddress'] ?? '')), 'title'=>'Only letters, numbers and special character are allowed (_@./)','style'=>'margin-bottom:6px !important;']); ?>
 											<?= $this->Form->hidden('RecId', ['value'=>$fmd_id]); ?>
 
 										<label class="form-label mb-0">City</label>
 										<?php echo $this->Form->control('OfficialPropertyCity', 
 										['label'=>['text'=>(isset($partnerMapFields['mappedtitle']['City'])) ? $partnerMapFields['mappedtitle']['City'] : 'City', 'escape'=>false],
-										'class'=>'form-control', 'required'=>false,'value' => $examReceiptFields['OfficialPropertyCity'],  'title'=>'Only letters, numbers and special character are allowed (_@./)' , 'label'=>false,'style'=>'margin-bottom:6px !important;']); ?>
+										'class'=>'form-control', 'required'=>false,'value' => (!empty($examReceiptFields['OfficialPropertyCity']) ? $examReceiptFields['OfficialPropertyCity'] : ($dtMapped['OfficialPropertyCity'] ?? '')),  'title'=>'Only letters, numbers and special character are allowed (_@./)' , 'label'=>false,'style'=>'margin-bottom:6px !important;']); ?>
 
 										<label class="form-label mb-0"><?= ((isset($partnerMapFields['mappedtitle']['State'])) ? $partnerMapFields['mappedtitle']['State'].'</label>' : 'State'.' <span style="color:#CA3F48">*</span></label>'); ?></label>
 											<?php echo $this->Form->control('OfficialPropertyState', 
 											['label'=>false,
-											'options' => $StateList,'value' => $examReceiptFields['OfficialPropertyState'], 'onchange'=>'getCounty(this.value,"company_div")', 'multiple' => false, 'empty' => 'Select State','class'=>'form-control', 'required'=>false,'style'=>'margin-bottom:6px !important;']); ?>	
+											'options' => $StateList,'value' => (!empty($examReceiptFields['OfficialPropertyState']) ? $examReceiptFields['OfficialPropertyState'] : ($dtMapped['OfficialPropertyState'] ?? '')), 'onchange'=>'getCounty(this.value,"company_div")', 'multiple' => false, 'empty' => 'Select State','class'=>'form-control', 'required'=>false,'style'=>'margin-bottom:6px !important;']); ?>	
 
 										<label class="form-label mb-0"><?= ((isset($partnerMapFields['mappedtitle']['County'])) ? $partnerMapFields['mappedtitle']['County'] : 'County'); ?></label>
 										<div id="company_div">
-											<?php echo $this->Form->control('OfficialPropertyCounty', ['label'=>false, 'options' => $CountyList,'value' => $examReceiptFields['OfficialPropertyCounty'], 'multiple' => false, 'empty' => 'Select County','class'=>'form-control', 'required'=>false,'style'=>'margin-bottom:6px !important;']); ?>
+											<?php echo $this->Form->control('OfficialPropertyCounty', ['label'=>false, 'options' => $CountyList,'value' => (!empty($examReceiptFields['OfficialPropertyCounty']) ? $examReceiptFields['OfficialPropertyCounty'] : ($dtMapped['OfficialPropertyCounty'] ?? '')), 'multiple' => false, 'empty' => 'Select County','class'=>'form-control', 'required'=>false,'style'=>'margin-bottom:6px !important;']); ?>
 										</div>
 
 									</div>
@@ -734,7 +749,7 @@
 										<div class="input-container-floating">	
 											<label class="form-label mb-0">Tax Status</label>
 											<?php 	echo $this->Form->control('TaxStatus', 
-												['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => $examReceiptFields['TaxStatus'], 'title'=>'Only letters, numbers and special character are allowed (_@./)']); ?>
+												['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => (!empty($examReceiptFields['TaxStatus']) ? $examReceiptFields['TaxStatus'] : ($dtMapped['TaxStatus'] ?? '')), 'title'=>'Only letters, numbers and special character are allowed (_@./)']); ?>
 												<?= $this->Form->hidden('RecId', ['value'=>$fmd_id]); ?>
 										</div>
 									</div>
@@ -751,7 +766,7 @@
 										<div class="input-container-floating">
 											<label class="form-label mb-0">Tax Year</label>
 											<?php echo $this->Form->control('TaxYear', 
-											['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => $examReceiptFields['TaxYear'],  'title'=>'Only letters, numbers and special character are allowed (_@./)']); ?>
+											['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => (!empty($examReceiptFields['TaxYear']) ? $examReceiptFields['TaxYear'] : ($dtMapped['TaxYear'] ?? '')),  'title'=>'Only letters, numbers and special character are allowed (_@./)']); ?>
 										</div>
 									</div>
 								</div>
@@ -767,7 +782,7 @@
 										<div class="input-container-floating">
 											<label class="form-label mb-0">Tax Amount</label>
 											<?php echo $this->Form->control('TaxAmount', 
-											['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => $examReceiptFields['TaxAmount'],  'title'=>'Only letters, numbers and special character are allowed (_@./)']); ?>
+											['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => (!empty($examReceiptFields['TaxAmount']) ? $examReceiptFields['TaxAmount'] : ($dtMapped['TaxAmount'] ?? '')),  'title'=>'Only letters, numbers and special character are allowed (_@./)']); ?>
 										</div>
 									</div>
 								</div>
@@ -920,7 +935,7 @@
 										<div class="input-container-floating">
 											<label class="form-label mb-0">APN/Account #</label>
 											<?php echo $this->Form->control('TaxAPNAccount', 
-											['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => $examReceiptFields['TaxAPNAccount'],  'title'=>'Only letters, numbers and special character are allowed (_@./)']); ?>
+											['label'=>false, 'class'=>'form-control', 'required'=>false, 'value' => (!empty($examReceiptFields['TaxAPNAccount']) ? $examReceiptFields['TaxAPNAccount'] : ($dtMapped['TaxAPNAccount'] ?? '')),  'title'=>'Only letters, numbers and special character are allowed (_@./)']); ?>
 										</div>
 									</div>
 								</div>
@@ -1005,7 +1020,7 @@
 										<div class="input-container-floating">	
 											<label class="form-label mb-0">Legal Description</label>
 											<?php echo $this->Form->control('LegalDescription', 
-											['label'=>false,'type'=>'textarea', 'class'=>'form-control', 'required'=>false, 'value' => $examReceiptFields['LegalDescription'],  'title'=>'Only letters, numbers and special character are allowed (_@./)', 'style'=>'height:40px;']); ?>
+											['label'=>false,'type'=>'textarea', 'class'=>'form-control', 'required'=>false, 'value' => (!empty($examReceiptFields['LegalDescription']) ? $examReceiptFields['LegalDescription'] : ($dtMapped['LegalDescription'] ?? '')),  'title'=>'Only letters, numbers and special character are allowed (_@./)', 'style'=>'height:40px;']); ?>
 										</div>
 									</div>
 								</div>
