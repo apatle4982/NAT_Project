@@ -107,9 +107,9 @@ use Cake\View\Helper;
                 //echo $result->id . ': ' . $result->sub_service . PHP_EOL;
             }*/
 
-            $vendor_services_html .='<br><div class="form-group"><b>CC National Vendor: </b>
+            $vendor_services_html .='<br><div class="form-group" id="cc_vendor_wrap"><b>CC National Vendor: </b>
                 <input type="checkbox" class="form-check-input" id="cc_nat_vendor" name="cc_nat_vendor" value="email" checked>
-                <input class="js-example-basic-single form-control" id="cc_nat_vendor_email" name="cc_nat_vendor_email" value="peter@tenxdoor.com"><br>';
+                <input class="js-example-basic-single form-control" id="cc_nat_vendor_email" name="cc_nat_vendor_email" value="peter@tenxdoor.com"><br></div>';
 
             /*$vendor_services_html .='<br><div class="form-group"><b>CC National Vendor: </b>
                 <input type="checkbox" class="form-check-input" id="cc_nat_vendor" name="cc_nat_vendor" value="email" checked>
@@ -118,8 +118,8 @@ use Cake\View\Helper;
             $vendor_services_html .='<br><div class="form-group"><b>Delivery Type: </b>
                 <input type="radio" class="form-check-input" id="delivery_type_email"  name="delivery_type" value="email">
                 <label class="form-check-label" for="delivery_type_email">Email</label>
-                <input type="radio" class="form-check-input" id="delivery_type_api"  name="delivery_type" value="api" disabled>
-                <label class="form-check-label" for="delivery_type_api">API</label></div>';
+                <input type="radio" class="form-check-input" id="delivery_type_api"  name="delivery_type" value="api">
+                <label class="form-check-label" for="delivery_type_api">API (DataTrace)</label></div>';
 
             $text = $this->Form->create(null, [
                 'url' => [

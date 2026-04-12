@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 use App\Controller\AppController;
+use App\Service\DataTraceService;
+use Cake\Log\Log;
 use Cake\ORM\TableRegistry;
 use Cake\I18n\Time;
 use Cake\Mailer\Mailer;
@@ -220,11 +222,16 @@ class FilesVendorAssignmentController extends AppController
 		// for common data_documentReceivedtable element
 		$is_index = 'Y';
 		$this->set('is_index', $is_index);
-		
+
         $this->set(compact('FilesVendorAssignment','companyMsts','DocumentTypeData','partnerMapField', 'vendorlist', 'vendor_services'));
         $this->set('_serialize', ['FilesVendorAssignment']);
-      
-	  // for partner section 
+
+        // Read DataTrace exam receipt written by _submitToDataTrace() after successful API call.
+        // consume() reads and deletes in one call — modal shows exactly once per submission.
+        $dtExamReceipt = $this->request->getSession()->consume('datatrace_exam_receipt');
+        $this->set('dtExamReceipt', $dtExamReceipt);
+
+	  // for partner section
 	   $checkinDataSheet = $this->request->getData('checkinDataSheet');
 		if(isset($checkinDataSheet))
 		{
@@ -2041,6 +2048,10 @@ class FilesVendorAssignmentController extends AppController
         if ($this->request->is('post')) {
             $data = $this->request->getData();
 
+            // Capture original RecId (may be comma-separated for multi-select)
+            // before the loop below overwrites $data['RecId'] with the last single value.
+            $originalRecId = $data['RecId'] ?? '';
+
             //foreach($data['search_criteria'] as $k=>$s){
                 $natServicesTable = TableRegistry::getTableLocator()->get('NatServices');
                 $natService = $natServicesTable->find()->where(['id' => $data['search_criteria']])->first();
@@ -2121,13 +2132,19 @@ class FilesVendorAssignmentController extends AppController
                 $csvFilenameOnly = basename($csvFilename);
                 $downloadLink = $this->request->getAttribute('webroot') . 'files/export/vendor_assigned/' . $csvFilenameOnly;
 
-                // Send email with CSV attachment
-                if(isset($data['delivery_type'])){
-                    if (!empty($vendorEmail)) {
-                        if(isset($data['cc_nat_vendor'])){
-                            $this->sendEmail($vendorEmail, $downloadLink, $csvFilename, $data['cc_nat_vendor_email']);
-                        }else{
-                            $this->sendEmail($vendorEmail, $downloadLink, $csvFilename);
+                // Deliver via API (DataTrace) or Email based on selected delivery_type
+                if (isset($data['delivery_type'])) {
+                    if ($data['delivery_type'] === 'api') {
+                        // DataTrace API path — no email sent
+                        $this->_submitToDataTrace($originalRecId);
+                    } else {
+                        // Existing email path — unchanged
+                        if (!empty($vendorEmail)) {
+                            if (isset($data['cc_nat_vendor'])) {
+                                $this->sendEmail($vendorEmail, $downloadLink, $csvFilename, $data['cc_nat_vendor_email']);
+                            } else {
+                                $this->sendEmail($vendorEmail, $downloadLink, $csvFilename);
+                            }
                         }
                     }
                 }
@@ -2137,6 +2154,69 @@ class FilesVendorAssignmentController extends AppController
             }
 
             return $this->redirect(['controller' => 'FilesVendorAssignment', 'action' => 'index']);
+        }
+    }
+
+    /**
+     * Submit one or more orders to the DataTrace external API.
+     *
+     * Called from add() when the user selects "API (DataTrace)" as delivery type.
+     * For each RecId, fetches the full order row from files_main_data, posts it to
+     * DataTrace, and logs the result in datatrace_api_logs.
+     *
+     * @param string $recIdString  Single ID or comma-separated IDs from the hidden form field.
+     * @return void
+     */
+    private function _submitToDataTrace(string $recIdString): void
+    {
+        $dataTraceService = new DataTraceService();
+        $recIds = array_filter(array_map('trim', explode(',', $recIdString)));
+
+        if (empty($recIds)) {
+            Log::warning('DataTrace: _submitToDataTrace called with empty RecId string.', ['scope' => 'datatrace']);
+            $this->Flash->error(__('DataTrace: No record IDs found to submit.'));
+            return;
+        }
+
+        foreach ($recIds as $recId) {
+            // Fetch full order data from files_main_data
+            $mainData = $this->FilesMainData->find()
+                ->where(['Id' => $recId])
+                ->first();
+
+            if (!$mainData) {
+                Log::warning('DataTrace: No files_main_data record for RecId: ' . $recId, ['scope' => 'datatrace']);
+                $this->Flash->error(__('DataTrace: Order data not found for record ID ' . $recId . '.'));
+                continue;
+            }
+
+            $orderData = $mainData->toArray();
+            $result    = $dataTraceService->submitOrder($orderData);
+
+            // Persist log regardless of success/failure
+            $dataTraceService->saveLog([
+                'rec_id'             => (int) $recId,
+                'nat_file_number'    => $mainData->NATFileNumber     ?? null,
+                'partner_file_number'=> $mainData->PartnerFileNumber ?? null,
+                'request_payload'    => json_encode($orderData),
+                'response_payload'   => json_encode($result['data'] ?? null),
+                'exam_receipt_id'    => $result['data']['examReceiptId'] ?? null,
+                'status'             => $result['success'] ? 'success' : 'failed',
+                'error_message'      => $result['error'] ?? null,
+            ]);
+
+            if ($result['success']) {
+                $examId = $result['data']['examReceiptId'] ?? 'N/A';
+                // Store full exam receipt in session so index page can display it in a modal
+                $this->request->getSession()->write('datatrace_exam_receipt', $result['data']);
+                $this->Flash->success(__(
+                    'DataTrace order submitted successfully. Exam Receipt ID: <strong>' . h($examId) . '</strong>'
+                ), ['escape' => false]);
+            } else {
+                $this->Flash->error(__(
+                    'DataTrace API error for record ' . $recId . ': ' . h($result['error'] ?? 'Unknown error')
+                ), ['escape' => false]);
+            }
         }
     }
 
