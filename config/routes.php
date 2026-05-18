@@ -158,7 +158,14 @@ return static function (RouteBuilder $routes) {
 
         $routeBuilder->connect('/get_final_aol/:PartnerFileNumber', ['controller' => 'NatApi', 'action' => 'get_final_aol'])
             ->setPass(['PartnerFileNumber']) // this tells Cake to pass `:id` as method argument
-            ->setMethods(['GET']);    
+            ->setMethods(['GET']);
+
+        // CURE <-> NAT integration (Phase 2) — receives extraction results from CURE.
+        // CURE Flask app POSTs to: http://localhost/nat_2/api/nat/cure-result
+        $routeBuilder->connect('/nat/cure-result', [
+            'controller' => 'CureCallback',
+            'action'     => 'receive',
+        ])->setMethods(['POST']);
     });
     /* 
      * If you need a different set of middleware or none at all,
